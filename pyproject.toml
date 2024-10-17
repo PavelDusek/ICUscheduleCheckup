@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "icuschedulecheckup"
+version = "0.1.0"
+description = "checks for errors in the ICU schedule"
+authors = ["Pavel Dusek <pavel.dusek@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+

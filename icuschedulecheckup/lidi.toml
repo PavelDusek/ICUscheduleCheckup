@@ -1,0 +1,23 @@
+[Ble]
+po_dopo = true
+po_odpo = true
+ut_dopo = false 
+ut_odpo = false
+st_dopo = true
+st_odpo = true
+ct_dopo = true
+ct_odpo = true
+pa_dopo = true
+pa_odpo = true
+
+[Du]
+po_dopo = true
+po_odpo = true
+ut_dopo = true
+ut_odpo = true
+st_dopo = true
+st_odpo = true
+ct_dopo = true
+ct_odpo = true 
+pa_dopo = true 
+pa_odpo = true 
