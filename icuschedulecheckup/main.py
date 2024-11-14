@@ -9,6 +9,7 @@
 import pandas as pd
 import toml
 from collections import defaultdict
+from icecream import ic
 import datetime
 import pdb
 import argparse
@@ -156,7 +157,7 @@ def makeEvent(year, month, day, text):
 def parse_missing(text, missing_type) -> str:
     if pd.isna(text):
         return ""
-    dopo_pattern, odpo_pattern = ["dop"], ["o"]
+    dopo_pattern, odpo_pattern = ["dop", "d", "dopo", "do"], ["o", "od", "odp", "odpo"]
     entries = text.split(",")
     missing = []
     for entry in entries:
@@ -169,7 +170,7 @@ def parse_missing(text, missing_type) -> str:
                 missing.append(clovek)
         else:
             missing.append(clovek[0])
-    print(missing)
+    ic(missing_type, missing)
     return ",".join(missing)
 
 df = pd.read_excel(filename)
@@ -196,7 +197,9 @@ df.rename(
 )
 df.drop(columns=["Unnamed: 0"], inplace=True)
 df.dropna(subset=["datum"], inplace=True)
+ic("***** missing dopo *****")
 df['ne_dopo'] = df['ne'].apply(parse_missing, missing_type='dopo')
+ic("***** missing odpo *****")
 df['ne_odpo'] = df['ne'].apply(parse_missing, missing_type='odpo')
 print(df)
 
