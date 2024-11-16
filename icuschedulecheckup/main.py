@@ -27,7 +27,7 @@ parser.add_argument("-v", "--verbose", action="store_true", help="vypise obsazen
 parser.add_argument("-s", "--sluzby", action="store_true", help="vytvori ics se rozpisem sluzeb")
 parser.add_argument("-k", "--kalendar", action="store_true", help="vytvori ics, kde je vypsany Dusek")
 parser.add_argument("-y", "--year", type=int, default=next_month.year, help="rok")
-parser.add_argument("-m", "--month", type=int, default=next_month.month, help="rok")
+parser.add_argument("-m", "--month", type=int, default=next_month.month, help="mesic")
 parser.add_argument("-p", "--posluzbe", help="Kdo je prvni den v mesici po sluzbe, napr. Fik, Du, Ke, atd.")
 parser.add_argument("-t", "--toml", help="lidi.toml file", default="lidi.toml")
 args = parser.parse_args()
