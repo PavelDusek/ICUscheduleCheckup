@@ -144,8 +144,8 @@ def makeVEVENT(name, start, end):
     return vevent
 
 def makeEvent(year, month, day, text):
-    name, typ = text.split("_")
-    if name != "ne":
+    if text != "ne":
+        name, typ = text.split("_")
         if typ == "dopo":
             start = datetime.datetime(year, month, day, 7, 0)
             end = datetime.datetime(year, month, day, 11, 0)
