@@ -196,7 +196,7 @@ for i, rows in df.iterrows():
                     print(dopoledne)
         for key, value in odpoledne.items():
             if (value != 1) and not is_absent(key, date, "odpo"):
-                print("* [red]odpo[/red]", key, value)
+                print("* [cyan]odpo[/cyan]", key, value)
                 if args.verbose:
                     print(odpoledne)
         print()
