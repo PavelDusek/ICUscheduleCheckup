@@ -21,3 +21,6 @@ ct_dopo = true
 ct_odpo = true 
 pa_dopo = true 
 pa_odpo = true 
+
+[Bu]
+list = [1,2,3,4,5,8,10,20,27]

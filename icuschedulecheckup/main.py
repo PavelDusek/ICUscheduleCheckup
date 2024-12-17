@@ -3,16 +3,17 @@
 
 # Post mortem debuging python3 -m pdb -c continue Rozpis.py -p Bik 2024-06.xls
 #TODO sluzba from different column
-#TODO toml with precise dates missing
+#TODO toml with both precise days missing and days of week in one person
 #TODO -o notation
 
 import pandas as pd
 import toml
 from collections import defaultdict
-from icecream import ic
 import datetime
 import pdb
 import argparse
+from icecream import ic
+from rich import print
 
 now = datetime.datetime.now()
 next_month = now + datetime.timedelta(days=30)
@@ -32,39 +33,30 @@ parser.add_argument("-p", "--posluzbe", help="Kdo je prvni den v mesici po sluzb
 parser.add_argument("-t", "--toml", help="lidi.toml file", default="lidi.toml")
 args = parser.parse_args()
 
-
+filename, month, year, posluzbe = args.filename, args.month, args.year, args.posluzbe
+print(f"Using {filename}, year {year}, month {month}, po sluzbe {posluzbe}.")
+assert posluzbe
 lidi_toml = toml.load("lidi.toml")
+lidi = lidi_toml.keys()
 
-def is_absent(name, dow, part_of_day, lidi_toml=lidi_toml):
-    # kdy lidi chybi
-    dopo_absent = {
-        "Rek": [0, 1, 2, 3, 4],
-        "Ga": [0, 1, 2, 3, 4],
-        "Kre": [3],
-        "Růž": [0, 1, 2, 3],
-        "For": [3, 4],
-        #"Bik": [0, 1, 2, 3],
-        "Slo": [4],
-        "Ho": [1],
-        "Sul": [3],
-        "Hry": [2],
-    }
-    odpo_absent = {
-        "Rek": [0, 1, 2, 3, 4],
-        "Ga": [0, 1, 2, 3, 4],
-        "Kre": [0, 3],
-        "Růž": [0, 1, 2, 3],
-        "For": [3, 4],
-        #"Bik": [0, 1, 2, 3],
-        "Slo": [4],
-        "Ho": [1],
-        "Sul": [0, 1, 2, 3, 4],
-        "Hry": [2],
-    }
+prezence_den_v_tydnu, prezence_datum = {}, {}
+for clovek, rozvrh in lidi_toml.items():
+    if "list" in rozvrh.keys():
+        #vycet dany datumy
+        prezence_datum[clovek] = rozvrh["list"]
+    else:
+        #vycet dany dny v tydnu
+        prezence_den_v_tydnu[clovek] = rozvrh
+
+def is_absent(name, date, part_of_day, lidi_toml=lidi_toml):
+    if days_list := prezence_datum.get(name):
+        #pro cloveka je vycet prezence dany datumy
+        return not date.day in days_list
+        
     dopo_absent = defaultdict(list)
     odpo_absent = defaultdict(list)
     dny = ["po", "ut", "st", "ct", "pa", "so", "ne"]
-    for clovek, rozvrh in lidi_toml.items():
+    for clovek, rozvrh in prezence_den_v_tydnu.items():
         for cast_dne, present in rozvrh.items():
             den, cas = cast_dne.split("_")
             if cas == "dopo" and not present:
@@ -77,60 +69,12 @@ def is_absent(name, dow, part_of_day, lidi_toml=lidi_toml):
     elif part_of_day == "odpo":
         absent = odpo_absent
     else:
-        raise ValueError("Part of Day not correctly specified.")
+        raise ValueError("Part of Day specified incorrectly.")
 
     if name in absent.keys():
-        if dow in absent[name]:
+        if date.weekday() in absent[name]:
             return True
     return False
-
-
-# df = pd.read_excel('červen rozpis.xls')
-# df = pd.read_excel('červenec rozpis.xls')
-# df, month, year, posluzbe = pd.read_excel('rijen.xls'), 10, 2021, "Ke"
-# df, month, year, posluzbe = pd.read_excel('rijen.xls'), 10, 2021, "Ke"
-# df, month, year, posluzbe = pd.read_excel('listopad.xls'), 11, 2021, "Fik"
-# df, month, year, posluzbe = pd.read_excel('prosinec.xls'), 12, 2021, "Kre"
-# df, month, year, posluzbe = pd.read_excel('leden.xls'), 1, 2022, "Slo"
-# df, month, year, posluzbe = pd.read_excel('2022-02b.xls'), 2, 2022, "Ke"
-# df, month, year, posluzbe = pd.read_excel('2022-03_.xls'), 3, 2022, "Ke"
-# df, month, year, posluzbe = pd.read_excel('2022-03.xls'), 3, 2022, "Ke"
-# df, month, year, posluzbe = pd.read_excel('2022-04.xls'), 4, 2022, "Ke"
-# df, month, year, posluzbe = pd.read_excel('2022-05.xls'), 5, 2022, "Slo"
-# df, month, year, posluzbe = pd.read_excel('2022-06.xls'), 6, 2022, "Kre"
-# df, month, year, posluzbe = pd.read_excel('2022-07.xls'), 7, 2022, "Fik"
-# df, month, year, posluzbe = pd.read_excel('2022-08.xls'), 8, 2022, "Slo"
-# df, month, year, posluzbe = pd.read_excel('2022-09.xls'), 9, 2022, "Slo"
-# df, month, year, posluzbe = pd.read_excel('2022-10.xls'), 10, 2022, "Slo"
-# df, month, year, posluzbe = pd.read_excel('2022-11.xls'), 11, 2022, "Fik"
-# df, month, year, posluzbe = pd.read_excel('2023-01.xls'), 1, 2023, "Fik"
-# filename, month, year, posluzbe = '2023-01.xls', 1, 2023, "Fik"
-# filename, month, year, posluzbe = '2023-02.xls', 2, 2023, "Kre"
-# filename, month, year, posluzbe = '2023-04.xls', 4, 2023, "Du"
-# filename, month, year, posluzbe = '2023-12.xls', 12, 2023, "Fik"
-#filename, month, year, posluzbe = "2024-02.xls", 2, 2024, "Slo"
-#filename, month, year, posluzbe = "2024-03.xls", 3, 2024, "Ho"
-#filename, month, year, posluzbe = "2024-04.xls", 4, 2024, "Růž"
-#filename, month, year, posluzbe = "2024-05.xls", 5, 2024, "For"
-
-filename, month, year, posluzbe = args.filename, args.month, args.year, args.posluzbe
-
-assert posluzbe
-
-print(f"Using {filename}, year {year}, month {month}, po sluzbe {posluzbe}.")
-# lidi = ['Rek', 'Du', 'Ga', 'Ke', 'Kre', 'Fik', 'Slo', 'Růž', 'Her']
-# lidi = ['Rek', 'Du', 'Ga', 'Ke', 'Kre', 'Fik', 'Slo', 'Růž', 'Bar']
-# lidi = ['Rek', 'Du', 'Ga', 'Ke', 'Kre', 'Fik', 'Slo', 'Růž', 'Škr']
-# lidi = ['Rek', 'Du', 'Ga', 'Ke', 'Kre', 'Fik', 'Slo', 'Růž', 'Ho', 'Dol' ]
-# lidi = ['Ho', 'Du', 'Ga', 'Ke', 'Kre', 'Fik', 'Slo', 'Růž', 'Ho', 'For' ]
-# lidi = ['Ho', 'Du', 'Hry', 'Ke', 'Kre', 'Fik', 'Slo', 'Růž', 'Ho', 'For' ]
-# lidi = ['Ho', 'Du', 'Kre', 'Fik', 'Slo', 'Růž', 'Ho', 'For', 'Bik' ]
-# lidi = ['Ho', 'Du', 'Kre', 'Fik', 'Slo', 'Růž', 'Ho', 'For', 'Bik', 'Jak' ]
-# lidi = ['Ho', 'Du', 'Kre', 'Fik', 'Ku', 'Růž', 'Ho', 'For', 'Bik', 'Šar', 'Sul' ]
-#lidi = ["Ho", "Du", "Kre", "Fik", "Růž", "Ho", "For", "Bik", "Jak", "Sul"]
-#lidi = ["Ho", "Du", "Kre", "Fik", "Růž", "Ho", "For", "Hry", "Sul"]
-lidi = ["Ho", "Du", "Kre", "Fik", "Růž", "Ho", "For", "Pil", "Sul"]
-lidi = lidi_toml.keys()
 
 
 def makeVEVENT(name, start, end):
@@ -157,7 +101,7 @@ def makeEvent(year, month, day, text):
 def parse_missing(text, missing_type) -> str:
     if pd.isna(text):
         return ""
-    dopo_pattern, odpo_pattern = ["dop", "d", "dopo", "do"], ["o", "od", "odp", "odpo"]
+    dopo_pattern, odpo_pattern = ["dop", "d", "dopo"], ["o", "od", "odp", "odpo"]
     entries = text.split(",")
     missing = []
     for entry in entries:
@@ -210,9 +154,12 @@ if args.verbose:
 
 for i, rows in df.iterrows():
     datum = rows["datum"]
-    den = datetime.date(year, month, int(datum)).weekday()
+    date = datetime.date(year, month, int(datum))
+    den = date.weekday()
     dopoledne = defaultdict(int)
     odpoledne = defaultdict(int)
+
+    #TODO kolonka po sluzbe z posledniho sloupecku
 
     if not "ne_dopo" in rows.index:
         rows["ne_dopo"] = posluzbe
@@ -225,7 +172,7 @@ for i, rows in df.iterrows():
         rows["ne_odpo"] = str(rows["ne_odpo"]) + ", " + posluzbe
 
     if den < 5:  # pouze vsedni dny
-        print(datum)
+        print(f"[green]{datum}[/green]")
         for clovek in lidi:
             dopoledne[clovek] = 0
             odpoledne[clovek] = 0
@@ -243,13 +190,13 @@ for i, rows in df.iterrows():
 
         # kontrola
         for key, value in dopoledne.items():
-            if (value != 1) and not is_absent(key, den, "dopo"):
-                print("* dopo", key, value)
+            if (value != 1) and not is_absent(key, date, "dopo"):
+                print("* [red]dopo[/red]", key, value)
                 if args.verbose:
                     print(dopoledne)
         for key, value in odpoledne.items():
-            if (value != 1) and not is_absent(key, den, "odpo"):
-                print("* odpo", key, value)
+            if (value != 1) and not is_absent(key, date, "odpo"):
+                print("* [red]odpo[/red]", key, value)
                 if args.verbose:
                     print(odpoledne)
         print()
