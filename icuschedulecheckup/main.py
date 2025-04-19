@@ -12,6 +12,7 @@ from collections import defaultdict
 import datetime
 import pdb
 import argparse
+import logging
 from icecream import ic
 from rich import print
 
@@ -27,11 +28,23 @@ parser.add_argument("filename")
 parser.add_argument("-v", "--verbose", action="store_true", help="vypise obsazeni jednotlivych dnu")
 parser.add_argument("-s", "--sluzby", action="store_true", help="vytvori ics se rozpisem sluzeb")
 parser.add_argument("-k", "--kalendar", action="store_true", help="vytvori ics, kde je vypsany Dusek")
+parser.add_argument("-l", "--log", type=str, default="NOTSET", help="uroven informaci z logging")
 parser.add_argument("-y", "--year", type=int, default=next_month.year, help="rok")
 parser.add_argument("-m", "--month", type=int, default=next_month.month, help="mesic")
 parser.add_argument("-p", "--posluzbe", help="Kdo je prvni den v mesici po sluzbe, napr. Fik, Du, Ke, atd.")
 parser.add_argument("-t", "--toml", help="lidi.toml file", default="lidi.toml")
 args = parser.parse_args()
+
+loglevels = {
+    "NOTSET": logging.NOTSET,
+    "DEBUG": logging.DEBUG, 
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
+loglevel = loglevels[args.log]
+logging.basicConfig( encoding = "utf-8", level = loglevel )
 
 filename, month, year, posluzbe = args.filename, args.month, args.year, args.posluzbe
 print(f"Using {filename}, year {year}, month {month}, po sluzbe {posluzbe}.")
@@ -154,6 +167,7 @@ if args.verbose:
 
 for i, rows in df.iterrows():
     datum = rows["datum"]
+    logging.info(f"Datum: {datum}")
     date = datetime.date(year, month, int(datum))
     den = date.weekday()
     dopoledne = defaultdict(int)
