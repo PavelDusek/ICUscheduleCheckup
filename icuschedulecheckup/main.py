@@ -135,7 +135,7 @@ df.rename(
         "Unnamed: 12": "vyu_dopo",
         "Unnamed: 13": "vyu_odpo",
         "Unnamed: 14": "ne",
-        "Unnamed: 15": "slouzi",
+        "Unnamed: 15": "sluzba",
     },
     inplace=True,
 )
@@ -158,8 +158,6 @@ for i, rows in df.iterrows():
     den = date.weekday()
     dopoledne = defaultdict(int)
     odpoledne = defaultdict(int)
-
-    #TODO kolonka po sluzbe z posledniho sloupecku
 
     if not "ne_dopo" in rows.index:
         rows["ne_dopo"] = posluzbe
@@ -200,7 +198,11 @@ for i, rows in df.iterrows():
                 if args.verbose:
                     print(odpoledne)
         print()
-    if not pd.isnull(rows["jip_dopo"]):
+    if not pd.isnull(rows["sluzba"]):
+        #pokud je vyplnena kolonka sluzba, pouzijeme tu
+        posluzbe = rows["sluzba"].strip()
+    elif not pd.isnull(rows["jip_dopo"]):
+        #pokud neni vyplnena kolonka sluzba, pouzijeme hlavniho lekare z dopoledne
         posluzbe = rows["jip_dopo"].split(",")[0].strip()
 
 if args.kalendar:
