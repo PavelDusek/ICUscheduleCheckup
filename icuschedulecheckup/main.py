@@ -13,7 +13,6 @@ import datetime
 import pdb
 import argparse
 import logging
-from icecream import ic
 from rich import print
 
 now = datetime.datetime.now()
@@ -128,7 +127,8 @@ def parse_missing(text, missing_type) -> str:
                 missing.append(clovek)
         else:
             missing.append(clovek[0])
-    ic(missing_type, missing)
+    logging.debug(f"Missing type: {missing_type}")
+    logging.debug(f"Missing: {missing}")
     return ",".join(missing)
 
 df = pd.read_excel(filename)
