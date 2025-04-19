@@ -131,7 +131,6 @@ def parse_missing(text, missing_type) -> str:
     return ",".join(missing)
 
 df = pd.read_excel(filename)
-
 df.rename(
     columns={
         "Unnamed: 1": "datum",
@@ -152,13 +151,15 @@ df.rename(
     },
     inplace=True,
 )
+logging.debug(df)
 df.drop(columns=["Unnamed: 0"], inplace=True)
 df.dropna(subset=["datum"], inplace=True)
-ic("***** missing dopo *****")
+logging.debug("***** missing dopo *****")
 df['ne_dopo'] = df['ne'].apply(parse_missing, missing_type='dopo')
-ic("***** missing odpo *****")
+logging.debug("***** missing odpo *****")
 df['ne_odpo'] = df['ne'].apply(parse_missing, missing_type='odpo')
-print(df)
+logging.debug(df)
+
 
 dusek = defaultdict(list)
 
@@ -167,7 +168,7 @@ if args.verbose:
 
 for i, rows in df.iterrows():
     datum = rows["datum"]
-    logging.info(f"Datum: {datum}")
+    logging.debug(f"Datum: {datum}")
     date = datetime.date(year, month, int(datum))
     den = date.weekday()
     dopoledne = defaultdict(int)
