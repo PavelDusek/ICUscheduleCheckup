@@ -28,6 +28,7 @@ parser.add_argument("filename")
 parser.add_argument("-v", "--verbose", action="store_true", help="vypise obsazeni jednotlivych dnu")
 parser.add_argument("-s", "--sluzby", action="store_true", help="vytvori ics se rozpisem sluzeb")
 parser.add_argument("-k", "--kalendar", action="store_true", help="vytvori ics, kde je vypsany Dusek")
+parser.add_argument("-i", "--skiprows", type=int, default=0, help="vytvori ics se rozpisem sluzeb")
 parser.add_argument("-l", "--log", type=str, default="NOTSET", help="uroven informaci z logging")
 parser.add_argument("-y", "--year", type=int, default=next_month.year, help="rok")
 parser.add_argument("-m", "--month", type=int, default=next_month.month, help="mesic")
@@ -131,6 +132,12 @@ def parse_missing(text, missing_type) -> str:
     return ",".join(missing)
 
 df = pd.read_excel(filename)
+
+#Skip n rows while keeping the original excel header
+#(thats the reason for not using pd.read_excel(filename, skiprows = args.skiprows)
+lines_to_skip = df.index[0:args.skiprows]
+df.drop(lines_to_skip, inplace=True)
+
 df.rename(
     columns={
         "Unnamed: 1": "datum",
