@@ -294,7 +294,7 @@ def parse_personal_events(row: dict, name: str) -> dict:
                 events["dopo"].append(pozice)
             if pozice.endswith("_odpo"):
                 events["odpo"].append(pozice)
-    return {"dopo": ", ".join(events["dopo"]), "odpo": ", ".join(events["dopo"])}
+    return {"dopo": ", ".join(events["dopo"]), "odpo": ", ".join(events["odpo"])}
 
 
 def check_allocations(
