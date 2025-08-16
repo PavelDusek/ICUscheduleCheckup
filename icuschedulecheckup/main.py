@@ -41,7 +41,10 @@ def parse_args() -> dict:
         help="vytvori ics, kde je vypsany Dusek",
     )
     parser.add_argument(
-        "-i", "--skiprows", type=int, default=0, help="vytvori ics se rozpisem sluzeb"
+        "-r", "--rows", type=str, default="30-36", help="ktere radky pouzit"
+    )
+    parser.add_argument(
+        "-c", "--columns", type=str, default="1-16", help="ktere sloupce pouzit"
     )
     parser.add_argument(
         "-l", "--log", type=str, default="NOTSET", help="uroven informaci z logging"
@@ -79,10 +82,10 @@ def get_schedule_patterns(path: Path) -> dict:
     for clovek, rozvrh in lidi_toml.items():
         if "list" in rozvrh.keys():
             # vycet dany datumy
-            prezence_datum[clovek] = rozvrh["list"]
+            prezence_datum[clovek.lower()] = rozvrh["list"]
         else:
             # vycet dany dny v tydnu
-            prezence_den_v_tydnu[clovek] = rozvrh
+            prezence_den_v_tydnu[clovek.lower()] = rozvrh
     return {"day_of_week": prezence_den_v_tydnu, "date": prezence_datum}
 
 
@@ -191,35 +194,38 @@ def parse_missing(text: str, part_of_day: str) -> str:
 def get_dataframe(path: Path, args: dict) -> pd.DataFrame:
     """Loads the excel dataframe."""
 
-    df = pd.read_excel(path)
+    columns_start, columns_end = args.columns.split("-")
+    columns_list = range( int(columns_start), int(columns_end) )
+    rows_start, rows_end = args.rows.split("-")
+    skiprows = int(rows_start)
+    nrows = int(rows_end) - skiprows
 
-    # Skip n rows while keeping the original excel header
-    # (thats the reason for not using pd.read_excel(path, skiprows = args.skiprows)
-    lines_to_skip = df.index[0 : args.skiprows]
-    df.drop(lines_to_skip, inplace=True)
-
-    df.rename(
-        columns={
-            "Unnamed: 1": "datum",
-            "Unnamed: 2": "jip_dopo",
-            "Unnamed: 3": "jip_odpo",
-            "Unnamed: 4": "sono_dopo",
-            "Unnamed: 5": "sono_odpo",
-            "Unnamed: 6": "sono2_dopo",
-            "Unnamed: 7": "sono2_odpo",
-            "Unnamed: 8": "amb_dopo",
-            "Unnamed: 9": "amb_odpo",
-            "Unnamed: 10": "kons_dopo",
-            "Unnamed: 11": "kons_odpo",
-            "Unnamed: 12": "vyu_dopo",
-            "Unnamed: 13": "vyu_odpo",
-            "Unnamed: 14": "ne",
-            "Unnamed: 15": "sluzba",
-        },
-        inplace=True,
+    df = pd.read_excel(
+        path,
+        names = [
+            "datum",
+            "den",
+            "jip_dopo",
+            "jip_odpo",
+            "sono_dopo",
+            "sono_odpo",
+            "sono2_dopo",
+            "sono2_odpo",
+            "amb_dopo",
+            "amb_odpo",
+             "kons_dopo",
+             "kons_odpo",
+             "vyu_dopo",
+             "vyu_odpo",
+             "ne",
+             "sluzba",
+         ],
+        usecols = columns_list,
+        skiprows = skiprows,
+        nrows = nrows
     )
     logging.debug(df)
-    df.drop(columns=["Unnamed: 0"], inplace=True)
+    df.to_excel("temp.xlsx", index=False)
     df.dropna(subset=["datum"], inplace=True)
     logging.debug("***** missing dopo *****")
     df["ne_dopo"] = df["ne"].apply(parse_missing, part_of_day="dopo")
@@ -258,9 +264,14 @@ def calculate_allocations(row: dict, part_of_day: str) -> dict:
     """ Parses row for schedule and calculates how many allocations each person has."""
     allocations = defaultdict(int)
     for key, value in row.items():
-        if key.endswith(f"_{part_of_day}") and not pd.isnull(value):
-            for person in value.split(","):
-                allocations[person.strip()] += 1
+        logging.debug("calculate_allocations(): key: %s", key)
+        if str(key).endswith(f"_{part_of_day}") and not pd.isnull(value):
+            if "," in value.strip():
+                persons = value.split(",")
+            else:
+                persons = value.split(" ")
+            for person in persons:
+                allocations[person.lower().strip()] += 1
     return allocations
 
 def parse_global_events(row: dict ) -> dict:
@@ -302,8 +313,8 @@ def check_allocations(
         )
         if (value != 1) and not absent:
             rich.print(f"* [red]{part_of_day}[/red]", key, value)
-            logging.info("part_of_day if %s with following values:", part_of_day)
-            logging.info(allocations)
+    logging.info("%s with following values:", part_of_day)
+    logging.info(allocations)
 
 
 def main() -> None:
@@ -334,7 +345,11 @@ def main() -> None:
     for _, row in df.iterrows():
         datum = row["datum"]
         logging.debug("Datum: %s", datum)
-        date = datetime.date(args.year, args.month, int(datum))
+        logging.debug("Datum type: %s", type(datum))
+        if isinstance(datum, (pd._libs.tslibs.timestamps.Timestamp, datetime.datetime, datetime.date)):
+            date = datum
+        else:
+            date = datetime.date(args.year, args.month, int(datum))
 
         # Add the person after nightshift to missing
         row["ne_dopo"] = (
@@ -345,6 +360,7 @@ def main() -> None:
         )
 
         # Calculate number of allocations for each person
+        logging.debug("Main(): row: %s", row)
         dopoledne = calculate_allocations(row = row, part_of_day = "dopo")
         odpoledne = calculate_allocations(row = row, part_of_day = "odpo")
         rich.print(f"[green]{datum}[/green]")
@@ -398,5 +414,60 @@ def main() -> None:
         )
 
 
+def tests() -> None:
+    """Runs unittests."""
+
+    # Testing data
+    prezence_den_v_tydnu, prezence_datum = {}, {}
+    prezence_datum["Hry"] = [2, 3, 4, 5, 11, 12, 13]
+    prezence_den_v_tydnu["Du"] = {
+        "po_dopo": True,
+        "po_odpo": False,
+        "ut_dopo": True,
+        "ut_odpo": True,
+        "st_dopo": True,
+        "st_odpo": True,
+        "ct_dopo": True,
+        "ct_odpo": False,
+        "pa_dopo": True,
+        "pa_odpo": True,
+    }
+    schedule_patterns = {"day_of_week": prezence_den_v_tydnu, "date": prezence_datum}
+
+    # Run tests
+    should_be_true = is_absent(
+        name="Du",
+        date=datetime.date(2025, 4, 17),
+        part_of_day="odpo",
+        schedule_patterns=schedule_patterns,
+    )
+    assert should_be_true
+
+    should_be_false = is_absent(
+        name="Du",
+        date=datetime.date(2025, 4, 17),
+        part_of_day="dopo",
+        schedule_patterns=schedule_patterns,
+    )
+    assert should_be_false is False
+
+    should_be_true = is_absent(
+        name="Hry",
+        date=datetime.date(2025, 4, 1),
+        part_of_day="odpo",
+        schedule_patterns=schedule_patterns,
+    )
+    assert should_be_true
+
+    should_be_false = is_absent(
+        name="Hry",
+        date=datetime.date(2025, 4, 2),
+        part_of_day="dopo",
+        schedule_patterns=schedule_patterns,
+    )
+    assert should_be_false is False
+
+
 if __name__ == "__main__":
+    tests()
     main()
