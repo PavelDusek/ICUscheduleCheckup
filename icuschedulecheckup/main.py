@@ -3,7 +3,12 @@
 
 """checks for errors in the ICU schedule"""
 
+# TODO name variants from toml
+# TODO remove spaces
 # TODO toml with both precise days missing and days of week in one person
+# TODO nevypisovat events o vikendu
+# TODO personal events nevypisovat prazdne
+
 # TODO -o notation
 # dicts to dataclass {'day_of_week': ..., 'date': ...}
 
@@ -174,10 +179,10 @@ def parse_missing(text: str, part_of_day: str) -> str:
     if pd.isna(text):
         return ""
     dopo_pattern, odpo_pattern = ["dop", "d", "dopo"], ["o", "od", "odp", "odpo"]
-    entries = text.split(",")
+    entries = text.split(" ")
     missing = []
     for entry in entries:
-        clovek = entry.split("-")
+        clovek = entry.split("_")
         if len(clovek) > 1:
             clovek, cas = clovek
             if part_of_day == "dopo" and cas.strip() in dopo_pattern:
@@ -224,6 +229,7 @@ def get_dataframe(path: Path, args: dict) -> pd.DataFrame:
         skiprows = skiprows,
         nrows = nrows
     )
+
     logging.debug(df)
     df.to_excel("temp.xlsx", index=False)
     df.dropna(subset=["datum"], inplace=True)
@@ -234,6 +240,24 @@ def get_dataframe(path: Path, args: dict) -> pd.DataFrame:
     logging.debug(df)
     return df
 
+def solve_name_variants(persons: str) -> str:
+    """Unifies person's name variants to one form."""
+    #Run only for str
+    if not isinstance(persons, str):
+        return persons
+
+    logging.debug("solve_name_variants before: %s", persons)
+    variant_dict = {
+        'ke': ["kem"],
+        'du': ["dus", "duš"],
+        'ru': ["ruz", "růž"],
+        'ho': ["hol"],
+    }
+    for key, variants in variant_dict.items():
+        for variant in variants:
+            persons = persons.lower().replace( variant, key )
+    logging.debug("solve_name_variants after: %s", persons)
+    return persons
 
 def create_event_calendar(calendar_dict: dict, path: Path) -> None:
     """Creates ics file according to calendar_dict."""
@@ -289,11 +313,20 @@ def parse_personal_events(row: dict, name: str) -> dict:
     """ Parses row and creates an entry into a personal calendar."""
     events = defaultdict(list)
     for pozice, value in row.items():
-        if name in [person.strip() for person in str(value).split(",")]:
-            if pozice.endswith("_dopo"):
-                events["dopo"].append(pozice)
-            if pozice.endswith("_odpo"):
-                events["odpo"].append(pozice)
+        # run only for real values
+        if isinstance(value, str):
+
+            #split on "," or " "
+            if "," in str(value).strip():
+                persons = value.split(",")
+            else:
+                persons = value.split(" ")
+
+            if name in [person.strip() for person in persons]:
+                if pozice.endswith("_dopo"):
+                    events["dopo"].append(pozice)
+                if pozice.endswith("_odpo"):
+                    events["odpo"].append(pozice)
     return {"dopo": ", ".join(events["dopo"]), "odpo": ", ".join(events["odpo"])}
 
 
@@ -353,11 +386,15 @@ def main() -> None:
 
         # Add the person after nightshift to missing
         row["ne_dopo"] = (
-            f"{row['ne_dopo']},{posluzbe}" if row["ne_dopo"] else posluzbe
+            f"{row['ne_dopo']} {posluzbe}" if row["ne_dopo"] else posluzbe
         )
         row["ne_odpo"] = (
-            f"{row['ne_odpo']},{posluzbe}" if row["ne_odpo"] else posluzbe
+            f"{row['ne_odpo']} {posluzbe}" if row["ne_odpo"] else posluzbe
         )
+
+        # Solve name variants
+        for index in row.index:
+            row[index] = solve_name_variants(row[index])
 
         # Calculate number of allocations for each person
         logging.debug("Main(): row: %s", row)
@@ -366,7 +403,7 @@ def main() -> None:
         rich.print(f"[green]{datum}[/green]")
 
         # Fill calendar_dicts
-        personal_calendar_dict[date] = parse_personal_events(row = row, name = "Du")
+        personal_calendar_dict[date] = parse_personal_events(row = row, name = "du")
         icu_calendar_dict[date] = parse_global_events(row = row)
 
         # check allocations for working days only
@@ -393,7 +430,7 @@ def main() -> None:
             # pokud neni vyplnena kolonka sluzba, pouzijeme hlavniho lekare z dopoledne
             sluzba = row["jip_dopo"].split(",")[0].strip()
         posluzbe = sluzba
-        sluzba = "Dušek Pavel" if sluzba == "Du" else sluzba
+        sluzba = "Dušek Pavel" if sluzba == "du" else sluzba
         sluzby_calendar_dict[date] = {"sluzba": sluzba}
 
     # Use calendar_event_dicts to get ics files
