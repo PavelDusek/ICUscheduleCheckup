@@ -1,5 +1,2 @@
-python3 main.py -p Du -y 2025 -m 9 --rows 3-33 --columns 1-17 --log INFO 2025-09.xls
-
-python3 main.py -p Du -y 2025 -m 9 --rows 3-33 --columns 1-17 --log WARNING 2025-09.xls
-
-python3 main.py -p Du -y 2025 -m 9 --rows 3-33 --columns 1-17 --log WARNING 2025-09.xls
+#To run
+poetry run python3 main.py -p Ke -y 2025 -m 12 --rows 1-31 --columns 0-16 --log NOTSET -k -s 2025-12.xlsx 2> schedule.log
