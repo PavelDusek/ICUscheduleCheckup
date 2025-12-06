@@ -247,7 +247,7 @@ def parse_name_variants(path: Path) -> dict:
     lidi_toml = toml.load(path)
     for clovek, rozvrh in lidi_toml.items():
         if "alias" in rozvrh.keys():
-            variant_dict[clovek.lower()] = [alias.lower for alias in rozvrh["alias"]]
+            variant_dict[clovek.lower()] = [alias.lower() for alias in rozvrh["alias"]]
     logging.debug("parse_name_variants variant_dict: %s", variant_dict)
     return variant_dict
 
@@ -258,12 +258,6 @@ def solve_name_variants(persons: str, variant_dict: dict) -> str:
         return persons
 
     logging.debug("solve_name_variants before: %s", persons)
-    variant_dict = {
-        'ke': ["kem"],
-        'du': ["dus", "duš"],
-        'ru': ["ruz", "růž"],
-        'ho': ["hol"],
-    }
     for key, variants in variant_dict.items():
         for variant in variants:
             persons = persons.lower().replace( variant, key )
@@ -378,6 +372,7 @@ def main() -> None:
 
     # Get name variants from toml file (aliases):
     name_variants = parse_name_variants(args.toml)
+    print(name_variants)
 
     # Get allocations from excel file:
     df = get_dataframe(path=Path(args.filename), args=args)
