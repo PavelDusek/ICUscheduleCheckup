@@ -1,4 +1,5 @@
 [Ble]
+alias=["bla", "blabla"]
 po_dopo = true
 po_odpo = true
 ut_dopo = false 
@@ -11,6 +12,7 @@ pa_dopo = true
 pa_odpo = true
 
 [Du]
+alias=["dus", "duš"]
 po_dopo = true
 po_odpo = true
 ut_dopo = true

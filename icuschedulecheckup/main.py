@@ -90,7 +90,7 @@ def get_schedule_patterns(path: Path) -> dict:
             prezence_datum[clovek.lower()] = rozvrh["list"]
         else:
             # vycet dany dny v tydnu
-            prezence_den_v_tydnu[clovek.lower()] = rozvrh
+            prezence_den_v_tydnu[clovek.lower()] = {cas: rozvrh[cas] for cas in filter(lambda key: key != "alias", rozvrh.keys())}
     return {"day_of_week": prezence_den_v_tydnu, "date": prezence_datum}
 
 
@@ -110,6 +110,7 @@ def is_absent(
     dny = ["po", "ut", "st", "ct", "pa", "so", "ne"]
     for clovek, rozvrh in schedule_patterns["day_of_week"].items():
         for cast_dne, present in rozvrh.items():
+            logging.debug("cast_dne %s", cast_dne)
             den, cas = cast_dne.split("_")
             if cas == "dopo" and not present:
                 dopo_absent[clovek].append(dny.index(den))
@@ -240,7 +241,17 @@ def get_dataframe(path: Path, args: dict) -> pd.DataFrame:
     logging.debug(df)
     return df
 
-def solve_name_variants(persons: str) -> str:
+def parse_name_variants(path: Path) -> dict:
+    """Parses the toml to get the name variants (aliases) dict."""
+    variant_dict = {}
+    lidi_toml = toml.load(path)
+    for clovek, rozvrh in lidi_toml.items():
+        if "alias" in rozvrh.keys():
+            variant_dict[clovek.lower()] = [alias.lower for alias in rozvrh["alias"]]
+    logging.debug("parse_name_variants variant_dict: %s", variant_dict)
+    return variant_dict
+
+def solve_name_variants(persons: str, variant_dict: dict) -> str:
     """Unifies person's name variants to one form."""
     #Run only for str
     if not isinstance(persons, str):
@@ -365,6 +376,9 @@ def main() -> None:
     # Get schedule patterns from toml file:
     schedule_patterns = get_schedule_patterns(path=Path(args.toml))
 
+    # Get name variants from toml file (aliases):
+    name_variants = parse_name_variants(args.toml)
+
     # Get allocations from excel file:
     df = get_dataframe(path=Path(args.filename), args=args)
 
@@ -394,7 +408,7 @@ def main() -> None:
 
         # Solve name variants
         for index in row.index:
-            row[index] = solve_name_variants(row[index])
+            row[index] = solve_name_variants(row[index], name_variants)
 
         # Calculate number of allocations for each person
         logging.debug("Main(): row: %s", row)
