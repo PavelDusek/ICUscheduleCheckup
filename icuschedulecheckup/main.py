@@ -75,7 +75,7 @@ def parse_args() -> dict:
         "CRITICAL": logging.CRITICAL,
     }
     loglevel = loglevels[args.log]
-    logging.basicConfig(encoding="utf-8", level=loglevel)
+    logging.basicConfig(encoding="utf-8", level=loglevel, force=True)
 
     return args
 
@@ -110,7 +110,6 @@ def is_absent(
     dny = ["po", "ut", "st", "ct", "pa", "so", "ne"]
     for clovek, rozvrh in schedule_patterns["day_of_week"].items():
         for cast_dne, present in rozvrh.items():
-            logging.debug("cast_dne %s", cast_dne)
             den, cas = cast_dne.split("_")
             if cas == "dopo" and not present:
                 dopo_absent[clovek].append(dny.index(den))
@@ -251,18 +250,21 @@ def parse_name_variants(path: Path) -> dict:
     logging.debug("parse_name_variants variant_dict: %s", variant_dict)
     return variant_dict
 
-def solve_name_variants(persons: str, variant_dict: dict) -> str:
+def solve_name_variants(person: str, variant_dict: dict) -> str:
     """Unifies person's name variants to one form."""
     #Run only for str
-    if not isinstance(persons, str):
-        return persons
+    if not isinstance(person, str):
+        return person
 
-    logging.debug("solve_name_variants before: %s", persons)
+    logging.debug("solve_name_variants before: %s", person)
     for key, variants in variant_dict.items():
         for variant in variants:
-            persons = persons.lower().replace( variant, key )
-    logging.debug("solve_name_variants after: %s", persons)
-    return persons
+            if person.lower().strip() == variant.lower():
+                #TODO replace just the variant def check_each_name
+                #person = key.lower().strip()
+                person = person.lower().replace( variant, key )
+    logging.debug("solve_name_variants after: %s", person)
+    return person
 
 def create_event_calendar(calendar_dict: dict, path: Path) -> None:
     """Creates ics file according to calendar_dict."""
@@ -372,7 +374,6 @@ def main() -> None:
 
     # Get name variants from toml file (aliases):
     name_variants = parse_name_variants(args.toml)
-    print(name_variants)
 
     # Get allocations from excel file:
     df = get_dataframe(path=Path(args.filename), args=args)
