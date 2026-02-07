@@ -2,8 +2,8 @@
 # coding: utf-8
 
 """checks for errors in the ICU schedule"""
+# TODO nepritomnost na casti
 
-# TODO name variants from toml
 # TODO remove spaces
 # TODO toml with both precise days missing and days of week in one person
 # TODO nevypisovat events o vikendu
@@ -17,6 +17,7 @@ from pathlib import Path
 import datetime
 import argparse
 import logging
+import re
 
 import pandas as pd
 import toml
@@ -179,7 +180,8 @@ def parse_missing(text: str, part_of_day: str) -> str:
     if pd.isna(text):
         return ""
     dopo_pattern, odpo_pattern = ["dop", "d", "dopo"], ["o", "od", "odp", "odpo"]
-    entries = text.split(" ")
+    #TODO split by re
+    entries = re.split(r"[, ]", text)
     missing = []
     for entry in entries:
         clovek = entry.split("_")
@@ -290,19 +292,24 @@ def create_event_calendar(calendar_dict: dict, path: Path) -> None:
         f.write(FOOTER)
         logging.info(FOOTER)
 
+def make_split(string: str) -> list:
+    """Splits string into parts by "," or " "."""
+    string = re.sub(r",", " ", string.strip())
+    string = re.sub(r"\/", " ", string.strip())
+    string = re.sub(r"\s+", " ", string)
+    return string.split(" ")
 
-def calculate_allocations(row: dict, part_of_day: str) -> dict:
+def calculate_allocations(row: dict, part_of_day: str, variant_dict: dict) -> dict:
     """ Parses row for schedule and calculates how many allocations each person has."""
     allocations = defaultdict(int)
     for key, value in row.items():
         logging.debug("calculate_allocations(): key: %s", key)
+        logging.debug("calculate_allocations(): value: %s", value)
         if str(key).endswith(f"_{part_of_day}") and not pd.isnull(value):
-            if "," in value.strip():
-                persons = value.split(",")
-            else:
-                persons = value.split(" ")
+            persons = make_split(value)
+            logging.debug("calculate_allocations(): persons: %s", persons)
             for person in persons:
-                allocations[person.lower().strip()] += 1
+                allocations[solve_name_variants(person.lower(), variant_dict=variant_dict)] += 1
     return allocations
 
 def parse_global_events(row: dict ) -> dict:
@@ -323,12 +330,7 @@ def parse_personal_events(row: dict, name: str) -> dict:
         # run only for real values
         if isinstance(value, str):
 
-            #split on "," or " "
-            if "," in str(value).strip():
-                persons = value.split(",")
-            else:
-                persons = value.split(" ")
-
+            persons = make_split(value)
             if name in [person.strip() for person in persons]:
                 if pozice.endswith("_dopo"):
                     events["dopo"].append(pozice)
@@ -404,12 +406,15 @@ def main() -> None:
 
         # Solve name variants
         for index in row.index:
-            row[index] = solve_name_variants(row[index], name_variants)
+            #if not index in ["datum", "den"]:
+            if not index in ["datum", "den", "ne_dopo", "ne_odpo"]:
+                logging.debug("index for solve name variants: %s", index)
+                row[index] = solve_name_variants(row[index], variant_dict=name_variants)
 
         # Calculate number of allocations for each person
         logging.debug("Main(): row: %s", row)
-        dopoledne = calculate_allocations(row = row, part_of_day = "dopo")
-        odpoledne = calculate_allocations(row = row, part_of_day = "odpo")
+        dopoledne = calculate_allocations(row = row, part_of_day = "dopo", variant_dict=name_variants)
+        odpoledne = calculate_allocations(row = row, part_of_day = "odpo", variant_dict=name_variants)
         rich.print(f"[green]{datum}[/green]")
 
         # Fill calendar_dicts
@@ -438,20 +443,21 @@ def main() -> None:
             sluzba = row["sluzba"].strip()
         elif not pd.isnull(row["jip_dopo"]):
             # pokud neni vyplnena kolonka sluzba, pouzijeme hlavniho lekare z dopoledne
+            #TODO split by re
             sluzba = row["jip_dopo"].split(",")[0].strip()
         posluzbe = sluzba
-        sluzba = "Dušek Pavel" if sluzba == "du" else sluzba
+        sluzba = "Dušek" if sluzba == "du" else sluzba
         sluzby_calendar_dict[date] = {"sluzba": sluzba}
 
     # Use calendar_event_dicts to get ics files
     if args.kalendar:
         create_event_calendar(
             calendar_dict=personal_calendar_dict,
-            path=Path(args.filename.replace(".xls", "_dusek.ics")),
+            path=Path(args.filename.replace(".xlsx", "_dusek.ics")),
         )
         create_event_calendar(
             calendar_dict=icu_calendar_dict,
-            path=Path(args.filename.replace(".xls", "_rozpis.ics")),
+            path=Path(args.filename.replace(".xlsx", "_rozpis.ics")),
         )
 
     if args.sluzby:
