@@ -353,8 +353,13 @@ def check_allocations(
             part_of_day=part_of_day,
             schedule_patterns=schedule_patterns,
         )
-        if (value != 1) and not absent:
+        #it could be zero, then it doesn't matter if absent:
+        if (value == 0) and not absent:
             rich.print(f"* [red]{part_of_day}[/red]", key, value)
+        #or it could be higher than 1, it matters always:
+        if (value > 1):
+            rich.print(f"* [red]{part_of_day}[/red]", key, value)
+
     logging.info("%s with following values:", part_of_day)
     logging.info(allocations)
 
