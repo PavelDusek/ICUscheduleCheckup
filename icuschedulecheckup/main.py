@@ -297,6 +297,7 @@ def make_split(string: str) -> list:
     string = re.sub(r",", " ", string.strip())
     string = re.sub(r"\/", " ", string.strip())
     string = re.sub(r"\s+", " ", string)
+    string = string.lower()
     return string.split(" ")
 
 def calculate_allocations(row: dict, part_of_day: str, variant_dict: dict) -> dict:
@@ -325,18 +326,23 @@ def parse_global_events(row: dict ) -> dict:
 
 def parse_personal_events(row: dict, name: str) -> dict:
     """ Parses row and creates an entry into a personal calendar."""
+    logging.debug("parse_personal_events(): row: %s", row)
+    logging.debug("parse_personal_events(): name: %s", name)
     events = defaultdict(list)
     for pozice, value in row.items():
         # run only for real values
         if isinstance(value, str):
-
             persons = make_split(value)
+            logging.debug("parse_personal_events(): persons: %s", persons)
             if name in [person.strip() for person in persons]:
+                logging.debug("parse_personal_events(): name found")
                 if pozice.endswith("_dopo"):
                     events["dopo"].append(pozice)
                 if pozice.endswith("_odpo"):
                     events["odpo"].append(pozice)
-    return {"dopo": ", ".join(events["dopo"]), "odpo": ", ".join(events["odpo"])}
+    event = {"dopo": ", ".join(events["dopo"]), "odpo": ", ".join(events["odpo"])}
+    logging.debug("parse_personal_events(): final event: %s", event)
+    return event
 
 
 def check_allocations(
@@ -396,28 +402,33 @@ def main() -> None:
         datum = row["datum"]
         logging.debug("Datum: %s", datum)
         logging.debug("Datum type: %s", type(datum))
+        logging.debug("Main(): row: %s", row)
         if isinstance(datum, (pd._libs.tslibs.timestamps.Timestamp, datetime.datetime, datetime.date)):
             date = datum
         else:
             date = datetime.date(args.year, args.month, int(datum))
 
-        # Add the person after nightshift to missing
-        row["ne_dopo"] = (
-            f"{row['ne_dopo']} {posluzbe}" if row["ne_dopo"] else posluzbe
-        )
-        row["ne_odpo"] = (
-            f"{row['ne_odpo']} {posluzbe}" if row["ne_odpo"] else posluzbe
-        )
-
         # Solve name variants
         for index in row.index:
             #if not index in ["datum", "den"]:
-            if not index in ["datum", "den", "ne_dopo", "ne_odpo"]:
+            if not index in ["datum", "den"]:
                 logging.debug("index for solve name variants: %s", index)
-                row[index] = solve_name_variants(row[index], variant_dict=name_variants)
+                logging.debug("row for solve name variants: %s", row[index])
+                if isinstance(row[index], str):
+                    persons = make_split(row[index])
+                    persons = [solve_name_variants(person, variant_dict=name_variants) for person in persons]
+                    row[index] = ", ".join(persons)
+
+        # Add the person after nightshift to missing
+        row["ne_dopo"] = (
+            f"{row['ne_dopo']}, {posluzbe}" if row["ne_dopo"] else posluzbe
+        )
+        row["ne_odpo"] = (
+            f"{row['ne_odpo']}, {posluzbe}" if row["ne_odpo"] else posluzbe
+        )
+
 
         # Calculate number of allocations for each person
-        logging.debug("Main(): row: %s", row)
         dopoledne = calculate_allocations(row = row, part_of_day = "dopo", variant_dict=name_variants)
         odpoledne = calculate_allocations(row = row, part_of_day = "odpo", variant_dict=name_variants)
         rich.print(f"[green]{datum}[/green]")
@@ -456,6 +467,7 @@ def main() -> None:
 
     # Use calendar_event_dicts to get ics files
     if args.kalendar:
+        logging.debug("personal_calendar_dict: %s", personal_calendar_dict)
         create_event_calendar(
             calendar_dict=personal_calendar_dict,
             path=Path(args.filename.replace(".xlsx", "_dusek.ics")),
@@ -468,7 +480,7 @@ def main() -> None:
     if args.sluzby:
         create_event_calendar(
             calendar_dict=sluzby_calendar_dict,
-            path=Path(args.filename.replace(".xls", "_sluzby.ics")),
+            path=Path(args.filename.replace(".xlsx", "_sluzby.ics")),
         )
 
 
